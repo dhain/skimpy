@@ -107,10 +107,19 @@ class TestElement(unittest.TestCase):
 
     def test_inherits_children_from_superclass(self):
         class E1(Element):
-            a = Element
-        class E2(E1):
+            a = type('E1a', (Element,), {})
+        class E2(Element):
+            a = type('E2a', (Element,), {})
+        class E3(E1, E2):
             b = Element
-        self.assertEqual(E2.children, set('a b'.split()))
+        self.assertEqual(E3.children, set('a b'.split()))
+        self.assertEqual(E3.a.__name__, 'E1a')
+
+    def test_subclass_can_have_init_args(self):
+        class MyElement(Element):
+            def __init__(self, arg1):
+                pass
+        self.assertTrue(isinstance(MyElement(1), MyElement))
 
 
 if __name__ == '__main__':
