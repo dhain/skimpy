@@ -63,3 +63,13 @@ class Element(object):
             path.reverse()
             return '.'.join(path)
     path = path()
+
+    def __getattribute__(self, name):
+        value = super(Element, self).__getattribute__(name)
+        if (
+            not name.startswith('__')
+            and name not in self.__dict__
+            and isinstance(value, Element)
+        ):
+            self.__dict__[name] = value
+        return value

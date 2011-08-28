@@ -11,11 +11,17 @@ class TestElement(unittest.TestCase):
         self.assertIs(A.element.parent, A)
 
     def test_get_on_instance_returns_instance_bound_to_parent_instance(self):
-        class A(object):
+        class A(Element):
             element = Element
         a = A()
         self.assertTrue(isinstance(a.element, Element))
         self.assertIs(a.element.parent, a)
+
+    def test_subsequent_instance_gets_return_same_instance(self):
+        class A(Element):
+            element = Element
+        a = A()
+        self.assertIs(a.element, a.element)
 
     def test_get_works_with_element_subclass(self):
         class MyElement(Element):
@@ -57,7 +63,6 @@ class TestElement(unittest.TestCase):
             class E2(Element):
                 class E3(Element):
                     pass
-        e = E1.E2
         self.assertEqual(E1.E2.E3.path, 'E1.E2.E3')
 
     def test_path_works_when_supplanted(self):
