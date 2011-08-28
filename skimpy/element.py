@@ -1,13 +1,17 @@
 class ElementType(type):
-    def __init__(self, name, bases, dct):
-        self.children = set()
+    def __new__(cls, name, bases, dct):
+        children = dct['children'] = set()
         for base in bases:
             if isinstance(base, ElementType):
-                self.children |= base.children
-        for key, value in dct.iteritems():
+                children |= base.children
+        for key in dct:
+            value = dct[key]
             if not isinstance(value, ElementType):
                 continue
-            self.children.add(key)
+            value = dct[key] = value._mk_subclass()
+            value.name = key
+            children.add(key)
+        return type.__new__(cls, name, bases, dct)
 
     def __get__(self, obj, cls):
         attr = '_%s__parent' % (self.__name__,)

@@ -77,6 +77,11 @@ class TestElement(unittest.TestCase):
                     pass
         self.assertEqual(P1.E2.E3.path, 'E2.E3')
 
+    def test_path_with_custom_names(self):
+        class E1(Element):
+            e2 = type('E2', (Element,), {'e3': Element})
+        self.assertEqual(E1.e2.e3.path, 'E1.e2.e3')
+
     def test_can_have_no_children(self):
         self.assertEqual(Element.children, set())
 
