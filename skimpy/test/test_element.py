@@ -132,5 +132,76 @@ class TestElement(unittest.TestCase):
         self.assertEqual(e.c.c.value, None)
 
 
+class TestListOf(unittest.TestCase):
+    def test_extract_sub_items(self):
+        @List.of
+        class MyElement(Element):
+            name = 'list'
+        flat = dict(('list-%d' % (i,), i) for i in xrange(3))
+        flat['list'] = 3
+        flats = list(MyElement()._extract_sub_items(flat))
+        flats.sort()
+        self.assertEqual(flats, [(i, 'list', i) for i in xrange(3)])
+
+    def test_extract_flats(self):
+        @List.of
+        class MyElement(Element):
+            name = 'list'
+        flats = list(MyElement()._extract_flats(
+            dict(('list-%d' % (i,), i) for i in xrange(3))))
+        self.assertEqual(flats, [{'list': i} for i in xrange(3)])
+
+    def test_extract_flats_with_structure(self):
+        @List.of
+        class MyElement(Element):
+            name = 'list'
+            a = Element
+            b = Element
+        flat = {
+            'list-0.a': 0,
+            'list-0.b': 1,
+            'list-1.a': 2,
+            'list-1.b': 3,
+        }
+        flats = list(MyElement()._extract_flats(flat))
+        self.assertEqual(flats, [{'list.a': i, 'list.b': i + 1}
+                                 for i in xrange(0, 4, 2)])
+
+    def test_from_flat(self):
+        class MyElement(Element):
+            name = 'list'
+        MyList = List.of(MyElement)
+        l = MyList.from_flat(dict(('list-%d' % (i,), i) for i in xrange(3)))
+        self.assertTrue(all(isinstance(el, MyElement) for el in l))
+        self.assertEqual([el.value for el in l], range(3))
+
+    def test_from_flat_with_structure(self):
+        class MyElement(Element):
+            @List.of
+            class a(Element):
+                a = Element
+                class b(Element):
+                    a = Element
+            b = Element
+        el = MyElement.from_flat({
+            'a': 1,
+            'a-2.a': 2,
+            'a-2.b': 3,
+            'a-2.b.a': 4,
+            'a-12.a': 5,
+            'a-12.b': 6,
+            'a-12.b.a': 7,
+            'b': 8,
+        })
+        self.assertEqual(el.a.value, 1)
+        self.assertEqual(el.a[0].a.value, 2)
+        self.assertEqual(el.a[0].b.value, 3)
+        self.assertEqual(el.a[0].b.a.value, 4)
+        self.assertEqual(el.a[1].a.value, 5)
+        self.assertEqual(el.a[1].b.value, 6)
+        self.assertEqual(el.a[1].b.a.value, 7)
+        self.assertEqual(el.b.value, 8)
+
+
 if __name__ == '__main__':
     unittest.main()
