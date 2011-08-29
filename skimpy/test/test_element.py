@@ -4,42 +4,68 @@ from skimpy.element import *
 
 
 class TestElement(unittest.TestCase):
+    def test_getting_nonexistent_child_raises_keyerror(self):
+        with self.assertRaises(KeyError):
+            Element['bogus']
+
     def test_get_returns_copy_bound_to_parent(self):
-        class A(object):
+        class A(Element):
             element = Element
-        self.assertIsNot(A.element, Element)
-        self.assertIs(A.element.parent, A)
+        self.assertIsNot(A['element'], Element)
+        self.assertIs(A['element'].parent, A)
 
     def test_get_on_instance_returns_instance_bound_to_parent_instance(self):
         class A(Element):
             element = Element
         a = A()
-        self.assertTrue(isinstance(a.element, Element))
-        self.assertIs(a.element.parent, a)
+        self.assertTrue(isinstance(a['element'], Element))
+        self.assertIs(a['element'].parent, a)
 
     def test_subsequent_instance_gets_return_same_instance(self):
         class A(Element):
             element = Element
         a = A()
-        self.assertIs(a.element, a.element)
+        self.assertIs(a['element'], a['element'])
 
     def test_get_works_with_element_subclass(self):
         class MyElement(Element):
             pass
-        class A(object):
+        class A(Element):
             element = MyElement
-        self.assertIsNot(A.element, MyElement)
-        self.assertIs(A.element.parent, A)
+        self.assertIsNot(A['element'], MyElement)
+        self.assertIs(A['element'].parent, A)
 
     def test_get_works_with_parent_subclass(self):
         class MyElement(Element):
             pass
-        class A(object):
+        class A(Element):
             element = MyElement
         class B(A):
             pass
-        self.assertIsNot(B.element, MyElement)
-        self.assertIs(B.element.parent, B)
+        self.assertIsNot(B['element'], MyElement)
+        self.assertIs(B['element'].parent, B)
+
+    def test_get_returns_correct_element_with_multiple_inheritance(self):
+        class MyElement(Element):
+            pass
+        class A(Element):
+            element = MyElement
+        class B(Element):
+            element = Element
+        class C(A, B):
+            pass
+        self.assertTrue(issubclass(C['element'], MyElement))
+
+    def test_get_works_with_parent_subclass_instance(self):
+        class MyElement(Element):
+            pass
+        class A(Element):
+            element = MyElement
+        class B(A):
+            pass
+        b = B()
+        self.assertTrue(isinstance(b['element'], MyElement))
+        self.assertIs(b['element'].parent, b)
 
     def test_can_set_name_on_class(self):
         class MyElement(Element):
@@ -58,7 +84,7 @@ class TestElement(unittest.TestCase):
             class E2(Element):
                 class E3(Element):
                     pass
-        self.assertEqual(E1.E2.E3.path, 'E2.E3')
+        self.assertEqual(E1['E2']['E3'].path, 'E2.E3')
 
     def test_path_works_when_supplanted(self):
         class E1(Element):
@@ -67,31 +93,44 @@ class TestElement(unittest.TestCase):
                     pass
         class E4(Element):
             pass
-        E4.E3 = E1.E2.E3
-        self.assertEqual(E4.E3.path, 'E3')
+        E4['E3'] = E1['E2']['E3']
+        self.assertEqual(E4['E3'].path, 'E3')
+
+    def test_path_works_when_supplanted_on_instance(self):
+        class E1(Element):
+            class E2(Element):
+                class E3(Element):
+                    pass
+        class E4(Element):
+            pass
+        e1 = E1()
+        e4 = E4()
+        e4['E3'] = e1['E2']['E3']
+        self.assertIs(e4['E3'].parent, e4)
+        self.assertEqual(e4['E3'].path, 'E3')
 
     def test_path_with_custom_names(self):
         class E1(Element):
             e2 = type('E2', (Element,), {'e3': Element})
-        self.assertEqual(E1.e2.e3.path, 'e2.e3')
+        self.assertEqual(E1['e2']['e3'].path, 'e2.e3')
 
     def test_can_have_no_children(self):
-        self.assertEqual(Element.children, set())
+        self.assertEqual(Element.keys(), [])
 
-    def test_keeps_track_of_children(self):
+    def test_iter_yields_child_names(self):
         class E(Element):
             a = Element
             b = Element
             c = Element
-        self.assertEqual(E.children, set('a b c'.split()))
+        self.assertEqual(set(E), set('a b c'.split()))
 
-    def test_child_keeps_track_of_children(self):
+    def test_can_iter_on_child(self):
         class E1(Element):
             class E2(Element):
                 a = Element
                 b = Element
                 c = Element
-        self.assertEqual(E1.E2.children, set('a b c'.split()))
+        self.assertEqual(set(E1['E2']), set('a b c'.split()))
 
     def test_inherits_children_from_superclass(self):
         class E1(Element):
@@ -100,8 +139,16 @@ class TestElement(unittest.TestCase):
             a = type('E2a', (Element,), {})
         class E3(E1, E2):
             b = Element
-        self.assertEqual(E3.children, set('a b'.split()))
-        self.assertEqual(E3.a.__name__, 'E1a')
+        self.assertEqual(set(E3), set('a b'.split()))
+        self.assertEqual(E3['a'].__name__, 'E1a')
+
+    def test_iter_on_instance_yields_child_names(self):
+        class E(Element):
+            a = Element
+            b = Element
+            c = Element
+        e = E()
+        self.assertEqual(set(e), set('a b c'.split()))
 
     def test_subclass_can_have_init_args(self):
         class MyElement(Element):
@@ -124,12 +171,12 @@ class TestElement(unittest.TestCase):
             'c.a': 4,
             'c.b': 5,
         })
-        self.assertEqual(e.a.value, 1)
-        self.assertEqual(e.b.value, 2)
-        self.assertEqual(e.c.value, 3)
-        self.assertEqual(e.c.a.value, 4)
-        self.assertEqual(e.c.b.value, 5)
-        self.assertEqual(e.c.c.value, None)
+        self.assertEqual(e['a'].value, 1)
+        self.assertEqual(e['b'].value, 2)
+        self.assertEqual(e['c'].value, 3)
+        self.assertEqual(e['c']['a'].value, 4)
+        self.assertEqual(e['c']['b'].value, 5)
+        self.assertEqual(e['c']['c'].value, None)
 
 
 class TestListOf(unittest.TestCase):
@@ -178,29 +225,29 @@ class TestListOf(unittest.TestCase):
     def test_from_flat_with_structure(self):
         class MyElement(Element):
             @List.of
-            class a(Element):
+            class l(Element):
                 a = Element
                 class b(Element):
                     a = Element
             b = Element
         el = MyElement.from_flat({
-            'a': 1,
-            'a-2.a': 2,
-            'a-2.b': 3,
-            'a-2.b.a': 4,
-            'a-12.a': 5,
-            'a-12.b': 6,
-            'a-12.b.a': 7,
+            'l': 1,
+            'l-2.a': 2,
+            'l-2.b': 3,
+            'l-2.b.a': 4,
+            'l-12.a': 5,
+            'l-12.b': 6,
+            'l-12.b.a': 7,
             'b': 8,
         })
-        self.assertEqual(el.a.value, 1)
-        self.assertEqual(el.a[0].a.value, 2)
-        self.assertEqual(el.a[0].b.value, 3)
-        self.assertEqual(el.a[0].b.a.value, 4)
-        self.assertEqual(el.a[1].a.value, 5)
-        self.assertEqual(el.a[1].b.value, 6)
-        self.assertEqual(el.a[1].b.a.value, 7)
-        self.assertEqual(el.b.value, 8)
+        self.assertEqual(el['l'].value, 1)
+        self.assertEqual(el['l'][0]['a'].value, 2)
+        self.assertEqual(el['l'][0]['b'].value, 3)
+        self.assertEqual(el['l'][0]['b']['a'].value, 4)
+        self.assertEqual(el['l'][1]['a'].value, 5)
+        self.assertEqual(el['l'][1]['b'].value, 6)
+        self.assertEqual(el['l'][1]['b']['a'].value, 7)
+        self.assertEqual(el['b'].value, 8)
 
 
 if __name__ == '__main__':
