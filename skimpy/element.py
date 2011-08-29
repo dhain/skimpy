@@ -28,6 +28,7 @@ class ElementType(type):
 
 class Element(object):
     __metaclass__ = ElementType
+    value = None
 
     class parent(object):
         def __get__(self, obj, cls):
@@ -41,14 +42,6 @@ class Element(object):
                 raise AttributeError(
                     "%r object has no attribute 'parent'" % (cls.__name__,))
     parent = parent()
-
-    class name(object):
-        def __get__(self, obj, cls):
-            try:
-                return obj.__dict__['name']
-            except (KeyError, AttributeError):
-                return cls.__name__
-    name = name()
 
     class path(object):
         def __get__(self, obj, cls):
@@ -73,3 +66,15 @@ class Element(object):
         ):
             self.__dict__[name] = value
         return value
+
+    @classmethod
+    def from_flat(cls, flat):
+        root = cls()
+        els = [root]
+        while els:
+            el = els.pop()
+            els.extend(getattr(el, attr) for attr in el.children)
+            path = el.path
+            if path in flat:
+                el.value = flat[path]
+        return root

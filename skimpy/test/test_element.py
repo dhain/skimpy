@@ -41,11 +41,6 @@ class TestElement(unittest.TestCase):
         self.assertIsNot(B.element, MyElement)
         self.assertIs(B.element.parent, B)
 
-    def test_default_name_is_class_name(self):
-        class MyElement(Element):
-            pass
-        self.assertEqual(MyElement.name, 'MyElement')
-
     def test_can_set_name_on_class(self):
         class MyElement(Element):
             name = 'a_name'
@@ -63,7 +58,7 @@ class TestElement(unittest.TestCase):
             class E2(Element):
                 class E3(Element):
                     pass
-        self.assertEqual(E1.E2.E3.path, 'E1.E2.E3')
+        self.assertEqual(E1.E2.E3.path, 'E2.E3')
 
     def test_path_works_when_supplanted(self):
         class E1(Element):
@@ -73,19 +68,12 @@ class TestElement(unittest.TestCase):
         class E4(Element):
             pass
         E4.E3 = E1.E2.E3
-        self.assertEqual(E4.E3.path, 'E4.E3')
-
-    def test_path_stops_when_parent_has_no_name(self):
-        class P1(object):
-            class E2(Element):
-                class E3(Element):
-                    pass
-        self.assertEqual(P1.E2.E3.path, 'E2.E3')
+        self.assertEqual(E4.E3.path, 'E3')
 
     def test_path_with_custom_names(self):
         class E1(Element):
             e2 = type('E2', (Element,), {'e3': Element})
-        self.assertEqual(E1.e2.e3.path, 'E1.e2.e3')
+        self.assertEqual(E1.e2.e3.path, 'e2.e3')
 
     def test_can_have_no_children(self):
         self.assertEqual(Element.children, set())
@@ -120,6 +108,28 @@ class TestElement(unittest.TestCase):
             def __init__(self, arg1):
                 pass
         self.assertTrue(isinstance(MyElement(1), MyElement))
+
+    def test_from_flat(self):
+        class MyElement(Element):
+            a = Element
+            b = Element
+            class c(Element):
+                a = Element
+                b = Element
+                c = Element
+        e = MyElement.from_flat({
+            'a': 1,
+            'b': 2,
+            'c': 3,
+            'c.a': 4,
+            'c.b': 5,
+        })
+        self.assertEqual(e.a.value, 1)
+        self.assertEqual(e.b.value, 2)
+        self.assertEqual(e.c.value, 3)
+        self.assertEqual(e.c.a.value, 4)
+        self.assertEqual(e.c.b.value, 5)
+        self.assertEqual(e.c.c.value, None)
 
 
 if __name__ == '__main__':
