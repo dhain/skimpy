@@ -156,6 +156,15 @@ class TestElement(unittest.TestCase):
                 pass
         self.assertTrue(isinstance(MyElement(1), MyElement))
 
+    def test_convert_is_strict_by_default(self):
+        class MyElement(Element):
+            converter = int
+        e = MyElement()
+        e.raw_value = 'a'
+        with self.assertRaises(ValueError):
+            e.convert()
+        self.assertEqual(e.value, None)
+
     def test_from_flat(self):
         class MyElement(Element):
             a = Element
@@ -177,6 +186,58 @@ class TestElement(unittest.TestCase):
         self.assertEqual(e['c']['a'].value, 4)
         self.assertEqual(e['c']['b'].value, 5)
         self.assertEqual(e['c']['c'].value, None)
+
+    def test_from_flat_with_root_name(self):
+        class MyElement(Element):
+            name = 'root'
+            a = Element
+            b = Element
+            class c(Element):
+                a = Element
+                b = Element
+                c = Element
+        e = MyElement.from_flat({
+            'root': 0,
+            'root.a': 1,
+            'root.b': 2,
+            'root.c': 3,
+            'root.c.a': 4,
+            'root.c.b': 5,
+        })
+        self.assertEqual(e['a'].value, 1)
+        self.assertEqual(e['b'].value, 2)
+        self.assertEqual(e['c'].value, 3)
+        self.assertEqual(e['c']['a'].value, 4)
+        self.assertEqual(e['c']['b'].value, 5)
+        self.assertEqual(e['c']['c'].value, None)
+
+    def test_converts_data(self):
+        class MyElement(Element):
+            converter = int
+        el = MyElement.from_flat({'': '1'})
+        self.assertEqual(el.raw_value, '1')
+        self.assertEqual(el.value, 1)
+
+    def test_can_skip_conversion(self):
+        class MyElement(Element):
+            converter = int
+        el = MyElement.from_flat({'': '1'}, convert=False)
+        self.assertEqual(el.raw_value, '1')
+        self.assertEqual(el.value, None)
+
+    def test_notes_conversion_errors_by_default(self):
+        class MyElement(Element):
+            converter = int
+        el = MyElement.from_flat({'': 'a'})
+        self.assertEqual(el.raw_value, 'a')
+        self.assertEqual(el.value, None)
+        self.assertTrue(isinstance(el.conversion_error, ValueError))
+
+    def test_raises_conversion_errors_when_strict(self):
+        class MyElement(Element):
+            converter = int
+        with self.assertRaises(ValueError):
+            el = MyElement.from_flat({'': 'a'}, strict=True)
 
 
 class TestListOf(unittest.TestCase):
@@ -218,9 +279,24 @@ class TestListOf(unittest.TestCase):
         class MyElement(Element):
             name = 'list'
         MyList = List.of(MyElement)
-        l = MyList.from_flat(dict(('list-%d' % (i,), i) for i in xrange(3)))
+        flat = dict(('list-%d' % (i,), i) for i in xrange(3))
+        flat['list'] = '1'
+        l = MyList.from_flat(flat)
         self.assertTrue(all(isinstance(el, MyElement) for el in l))
         self.assertEqual([el.value for el in l], range(3))
+        self.assertEqual(l.value, '1')
+
+    def test_from_flat_with_converter(self):
+        class MyElement(Element):
+            name = 'list'
+            converter = int
+        MyList = List.of(MyElement)
+        flat = dict(('list-%d' % (i,), i) for i in xrange(3))
+        flat['list'] = '1'
+        l = MyList.from_flat(flat)
+        self.assertTrue(all(isinstance(el, MyElement) for el in l))
+        self.assertEqual([el.value for el in l], range(3))
+        self.assertEqual(l.value, 1)
 
     def test_from_flat_with_structure(self):
         class MyElement(Element):

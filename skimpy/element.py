@@ -55,7 +55,10 @@ class ElementType(type):
 
 class Element(object):
     __metaclass__ = ElementType
+    raw_value = None
     value = None
+    converter = None
+    conversion_error = None
 
     def __new__(cls, *args, **kw):
         self = object.__new__(cls)
@@ -92,6 +95,8 @@ class Element(object):
     def copy(self):
         copy = type(self)()
         copy.__dict__ = self.__dict__.copy()
+        for el in copy.itervalues():
+            el.parent = copy
         return copy
 
     class path(object):
@@ -108,20 +113,33 @@ class Element(object):
             return '.'.join(path)
     path = path()
 
-    def _from_flat(self, flat):
+    def convert(self, strict=True):
+        if self.converter is None:
+            self.value = self.raw_value
+        else:
+            try:
+                self.value = self.converter(self.raw_value)
+            except Exception, inst:
+                if strict:
+                    raise
+                self.conversion_error = inst
+
+    def _from_flat(self, flat, convert=True, strict=False):
         try:
-            self.value = flat[self.path]
+            self.raw_value = flat[self.path]
         except KeyError:
             pass
+        if convert:
+            self.convert(strict)
 
     @classmethod
-    def from_flat(cls, flat):
+    def from_flat(cls, flat, convert=True, strict=False):
         root = cls()
         els = [root]
         while els:
             el = els.pop()
             els.extend(el.itervalues())
-            el._from_flat(flat)
+            el._from_flat(flat, convert, strict)
         return root
 
 
@@ -166,16 +184,18 @@ class List(list, Element):
             value = value.with_attrs(name=self.name)
         return value
 
-    def _from_flat(self, flat):
-        Element._from_flat(self, flat)
+    def _from_flat(self, flat, convert=True, strict=False):
+        Element._from_flat(self, flat, convert, strict)
         for sub_flat in self._extract_flats(flat):
-            self.append(self.element_type.from_flat(sub_flat))
+            self.append(self.element_type.from_flat(
+                sub_flat, convert, strict))
 
     @classmethod
     def of(cls, element):
         dct = dict(element_type=element)
-        try:
-            dct['name'] = element.name
-        except AttributeError:
-            pass
+        for name in ('name', 'converter'):
+            try:
+                dct[name] = getattr(element, name)
+            except AttributeError:
+                pass
         return cls.with_attrs(**dct)
