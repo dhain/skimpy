@@ -60,6 +60,8 @@ class Element(object):
     converter = None
     conversion_error = None
     adapter = None
+    validators = ()
+    validation_errors = ()
 
     def __new__(cls, *args, **kw):
         self = object.__new__(cls)
@@ -164,6 +166,30 @@ class Element(object):
         self._flatten_children(flat, adapt, include_empty)
         return flat
 
+    def _validate_children(self):
+        overall_result = True
+        for child in self.itervalues():
+            child._validate_children()
+            result = child.is_valid(recursive=False)
+            if not result:
+                overall_result = False
+        return overall_result
+
+    def is_valid(self, recursive=True):
+        self.validation_errors = []
+        overall_result = True
+        if recursive and not self._validate_children():
+            overall_result = False
+        for validator in self.validators:
+            try:
+                result = validator(self)
+            except Exception, err:
+                self.validation_errors.append(err)
+                result = False
+            if not result:
+                return False
+        return overall_result
+
 
 class List(list, Element):
     def _extract_sub_items(self, flat):
@@ -217,6 +243,15 @@ class List(list, Element):
             child = child.copy()
             child.name = '%s-%d' % (child.name, i)
             flat.update(child.flatten(adapt, include_empty))
+
+    def _validate_children(self):
+        overall_result = True
+        for child in self:
+            child._validate_children()
+            result = child.is_valid(recursive=False)
+            if not result:
+                overall_result = False
+        return overall_result
 
     @classmethod
     def of(cls, element):

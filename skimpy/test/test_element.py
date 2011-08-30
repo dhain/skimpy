@@ -311,6 +311,86 @@ class TestElement(unittest.TestCase):
         e.value = 1
         self.assertEqual(e.flatten(adapt=False), {'': 1})
 
+    def test_validate_with_no_validators(self):
+        e = Element()
+        self.assertTrue(e.is_valid())
+
+    def test_can_be_invalid(self):
+        calls = []
+        def validator(e):
+            calls.append(e)
+        e = Element.with_attrs(validators=[validator])()
+        self.assertFalse(e.is_valid())
+        self.assertEqual(calls, [e])
+
+    def test_validator_can_set_errors(self):
+        def validator(e):
+            e.validation_errors.append(u'Some error')
+            return False
+        e = Element.with_attrs(validators=[validator])()
+        self.assertFalse(e.is_valid())
+        self.assertEqual(e.validation_errors, [u'Some error'])
+
+    def test_validator_exceptions_are_recorded_as_errors(self):
+        error = TypeError()
+        def validator(e):
+            raise error
+        e = Element.with_attrs(validators=[validator])()
+        self.assertFalse(e.is_valid())
+        self.assertEqual(e.validation_errors, [error])
+
+    def test_can_be_valid(self):
+        e = Element.with_attrs(validators=[lambda e: True])()
+        self.assertTrue(e.is_valid())
+
+    def test_multiple_validators_are_called_in_order(self):
+        call_order = []
+        def validator(order, value):
+            def validator(e):
+                call_order.append(order)
+                return value
+            return validator
+        validators = [validator(i, i != 1) for i in xrange(3)]
+        e = Element.with_attrs(validators=validators)()
+        self.assertFalse(e.is_valid())
+        self.assertEqual(call_order, range(2))
+
+    def test_validation_is_recursive(self):
+        calls = []
+        def validator(e):
+            calls.append(e)
+            return True
+        class MyElement(Element):
+            validators = [validator]
+            class a(Element):
+                validators = [validator]
+                class b(Element):
+                    validators = [validator]
+            class b(Element):
+                validators = [validator]
+        e = MyElement()
+        self.assertTrue(e.is_valid())
+        self.assertEqual(calls, [e['a']['b'], e['a'], e['b'], e])
+
+    def test_invalid_child_doesnt_stop_recursion(self):
+        calls = []
+        def validator(value):
+            def validator(e):
+                calls.append(e)
+                return value
+            return validator
+        class MyElement(Element):
+            validators = [validator(True)]
+            class a(Element):
+                validators = [validator(False)]
+                class b(Element):
+                    validators = [validator(True)]
+            class b(Element):
+                validators = [validator(True)]
+        e = MyElement()
+        self.assertFalse(e.is_valid())
+        self.assertEqual(calls, [e['a']['b'], e['a'], e['b'], e])
+
 
 class TestListOf(unittest.TestCase):
     def test_extract_sub_items(self):
@@ -417,6 +497,22 @@ class TestListOf(unittest.TestCase):
         }
         el = MyElement.from_flat(flat)
         self.assertEqual(el.flatten(), flat)
+
+    def test_validation(self):
+        calls = []
+        def validator(e):
+            calls.append(e)
+            return True
+        class MyElement(Element):
+            validators = [validator]
+            @List.of
+            class a(Element):
+                validators = [validator]
+            a = a.with_attrs(validators=[validator])
+        e = MyElement()
+        e['a'].extend(e['a'].element_type() for _ in xrange(3))
+        self.assertTrue(e.is_valid())
+        self.assertEqual(calls, [e['a'][0], e['a'][1], e['a'][2], e['a'], e])
 
 
 if __name__ == '__main__':
