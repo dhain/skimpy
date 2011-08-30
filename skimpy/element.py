@@ -256,3 +256,11 @@ class List(list, Element):
             except AttributeError:
                 pass
         return cls.with_attrs(**dct)
+
+
+def with_attrs(*args, **kw):
+    def with_attrs(element):
+        return element.with_attrs(**kw)
+    if args:
+        return with_attrs(*args)
+    return with_attrs

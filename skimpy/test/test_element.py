@@ -515,5 +515,27 @@ class TestListOf(unittest.TestCase):
         self.assertEqual(calls, [e['a'][0], e['a'][1], e['a'][2], e['a'], e])
 
 
+class TestWithAttrs(unittest.TestCase):
+    def test_calls_with_attrs_on_argument(self):
+        class MyElement(Element):
+            pass
+        NewElement = with_attrs(MyElement, name='new name')
+        self.assertEqual(NewElement.name, 'new name')
+
+    def test_can_be_used_as_decorator(self):
+        @with_attrs(name='new name')
+        class MyElement(Element):
+            pass
+        self.assertEqual(MyElement.name, 'new name')
+
+    def test_too_many_args_raises_typeerror(self):
+        with self.assertRaises(TypeError) as assertion:
+            with_attrs(1, 2)
+        self.assertEqual(
+            str(assertion.exception),
+            'with_attrs() takes exactly 1 argument (2 given)'
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
