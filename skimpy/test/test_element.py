@@ -239,6 +239,78 @@ class TestElement(unittest.TestCase):
         with self.assertRaises(ValueError):
             el = MyElement.from_flat({'': 'a'}, strict=True)
 
+    def test_flatten(self):
+        class MyElement(Element):
+            a = Element
+            b = Element
+            class c(Element):
+                a = Element
+                b = Element
+                c = Element
+        flat = {
+            'a': 1,
+            'b': 2,
+            'c': 3,
+            'c.a': 4,
+            'c.b': 5,
+        }
+        e = MyElement.from_flat(flat)
+        self.assertEqual(e.flatten(), flat)
+
+    def test_flatten_with_root_name(self):
+        class MyElement(Element):
+            name = 'root'
+            a = Element
+            b = Element
+            class c(Element):
+                a = Element
+                b = Element
+                c = Element
+        flat = {
+            'root': 0,
+            'root.a': 1,
+            'root.b': 2,
+            'root.c': 3,
+            'root.c.a': 4,
+            'root.c.b': 5,
+        }
+        e = MyElement.from_flat(flat)
+        self.assertEqual(e.flatten(), flat)
+
+    def test_can_include_empty_values_in_flatten(self):
+        class MyElement(Element):
+            a = Element
+            b = Element
+            class c(Element):
+                a = Element
+                b = Element
+                c = Element
+        flat = {
+            'a': 1,
+            'b': 2,
+            'c': 3,
+            'c.a': 4,
+            'c.b': 5,
+        }
+        e = MyElement.from_flat(flat)
+        flat[''] = None
+        flat['c.c'] = None
+        self.assertEqual(e.flatten(include_empty=True), flat)
+
+    def test_flatten_adapts_by_default(self):
+        class MyElement(Element):
+            adapter = str
+        e = MyElement()
+        e.value = 1
+        self.assertEqual(e.flatten(), {'': '1'})
+
+    def test_can_skip_adapting(self):
+        class MyElement(Element):
+            adapter = str
+        e = MyElement()
+        e.value = 1
+        self.assertEqual(e.flatten(adapt=False), {'': 1})
+
 
 class TestListOf(unittest.TestCase):
     def test_extract_sub_items(self):
@@ -324,6 +396,27 @@ class TestListOf(unittest.TestCase):
         self.assertEqual(el['l'][1]['b'].value, 6)
         self.assertEqual(el['l'][1]['b']['a'].value, 7)
         self.assertEqual(el['b'].value, 8)
+
+    def test_flatten(self):
+        class MyElement(Element):
+            @List.of
+            class l(Element):
+                a = Element
+                class b(Element):
+                    a = Element
+            b = Element
+        flat = {
+            'l': 1,
+            'l-0.a': 2,
+            'l-0.b': 3,
+            'l-0.b.a': 4,
+            'l-1.a': 5,
+            'l-1.b': 6,
+            'l-1.b.a': 7,
+            'b': 8,
+        }
+        el = MyElement.from_flat(flat)
+        self.assertEqual(el.flatten(), flat)
 
 
 if __name__ == '__main__':

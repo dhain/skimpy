@@ -59,6 +59,7 @@ class Element(object):
     value = None
     converter = None
     conversion_error = None
+    adapter = None
 
     def __new__(cls, *args, **kw):
         self = object.__new__(cls)
@@ -124,6 +125,12 @@ class Element(object):
                     raise
                 self.conversion_error = inst
 
+    def adapt(self):
+        if self.adapter is None:
+            self.raw_value = self.value
+        else:
+            self.raw_value = self.adapter(self.value)
+
     def _from_flat(self, flat, convert=True, strict=False):
         try:
             self.raw_value = flat[self.path]
@@ -141,6 +148,21 @@ class Element(object):
             els.extend(el.itervalues())
             el._from_flat(flat, convert, strict)
         return root
+
+    def _flatten_children(self, flat, adapt=True, include_empty=False):
+        for child in self.itervalues():
+            flat.update(child.flatten(adapt, include_empty))
+
+    def flatten(self, adapt=True, include_empty=False):
+        flat = {}
+        if include_empty or self.value is not None:
+            if adapt:
+                self.adapt()
+                flat[self.path] = self.raw_value
+            else:
+                flat[self.path] = self.value
+        self._flatten_children(flat, adapt, include_empty)
+        return flat
 
 
 class List(list, Element):
@@ -190,10 +212,16 @@ class List(list, Element):
             self.append(self.element_type.from_flat(
                 sub_flat, convert, strict))
 
+    def _flatten_children(self, flat, adapt=True, include_empty=False):
+        for i, child in enumerate(self):
+            child = child.copy()
+            child.name = '%s-%d' % (child.name, i)
+            flat.update(child.flatten(adapt, include_empty))
+
     @classmethod
     def of(cls, element):
         dct = dict(element_type=element)
-        for name in ('name', 'converter'):
+        for name in ('name', 'adapter', 'converter'):
             try:
                 dct[name] = getattr(element, name)
             except AttributeError:
