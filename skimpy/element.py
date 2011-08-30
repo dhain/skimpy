@@ -226,22 +226,16 @@ class List(list, Element):
             flats[-1][sub_key] = value
         return flats
 
-    def __getattribute__(self, name):
-        value = list.__getattribute__(self, name)
-        if name == 'element_type':
-            value = value.with_attrs(name=self.name)
-        return value
-
     def _from_flat(self, flat, convert=True, strict=False):
         Element._from_flat(self, flat, convert, strict)
+        element_type = self.element_type.with_attrs(name=self.name)
         for sub_flat in self._extract_flats(flat):
-            self.append(self.element_type.from_flat(
-                sub_flat, convert, strict))
+            self.append(element_type.from_flat(sub_flat, convert, strict))
 
     def _flatten_children(self, flat, adapt=True, include_empty=False):
         for i, child in enumerate(self):
             child = child.copy()
-            child.name = '%s-%d' % (child.name, i)
+            child.name = '%s-%d' % (self.name, i)
             flat.update(child.flatten(adapt, include_empty))
 
     def _validate_children(self):
