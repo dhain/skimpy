@@ -448,7 +448,7 @@ class TestListOf(unittest.TestCase):
         l = MyList.from_flat(flat)
         self.assertTrue(all(isinstance(el, MyElement) for el in l))
         self.assertEqual([el.value for el in l], range(3))
-        self.assertEqual(l.value, 1)
+        self.assertEqual(l.value, '1')
 
     def test_from_flat_with_structure(self):
         class MyElement(Element):

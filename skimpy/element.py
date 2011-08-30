@@ -250,11 +250,10 @@ class List(list, Element):
     @classmethod
     def of(cls, element):
         dct = dict(element_type=element)
-        for name in ('name', 'adapter', 'converter'):
-            try:
-                dct[name] = getattr(element, name)
-            except AttributeError:
-                pass
+        try:
+            dct['name'] = element.name
+        except AttributeError:
+            pass
         return cls.with_attrs(**dct)
 
 
