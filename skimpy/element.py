@@ -192,13 +192,29 @@ class Element(object):
 
 
 class List(list, Element):
+    def __iter__(self):
+        for i in xrange(len(self)):
+            yield self[i]
+
+    def __getitem__(self, idx):
+        if isinstance(idx, slice):
+            return type(self)(list.__getitem__(self, idx))
+        child = list.__getitem__(self, idx)
+        child.name = str(len(self) + idx if idx < 0 else idx)
+        child.parent = self
+        return child
+
+    def append_new(self):
+        self.append(self.element_type())
+        return self[-1]
+
     def _extract_sub_items(self, flat):
         path = self.path
         prefix_len = len(path)
         for key, value in flat.iteritems():
             if not (
                 key[:prefix_len] == path and
-                key[prefix_len:prefix_len + 1] == '-'
+                key[prefix_len:prefix_len + 1] == '.'
             ):
                 continue
             sub_key = key[prefix_len + 1:]
@@ -233,9 +249,7 @@ class List(list, Element):
             self.append(element_type.from_flat(sub_flat, convert, strict))
 
     def _flatten_children(self, flat, adapt=True, include_empty=False):
-        for i, child in enumerate(self):
-            child = child.copy()
-            child.name = '%s-%d' % (self.name, i)
+        for child in self:
             flat.update(child.flatten(adapt, include_empty))
 
     def _validate_children(self):

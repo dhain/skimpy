@@ -393,11 +393,23 @@ class TestElement(unittest.TestCase):
 
 
 class TestListOf(unittest.TestCase):
+    def test_items_have_correct_path(self):
+        class MyElement(Element):
+            L = List.of(Element)
+        el = MyElement()
+        el['L'].append(Element())
+        self.assertEqual(el['L'][0].path, 'L.0')
+
+    def test_getting_elements_binds_parent_to_instance(self):
+        l = List.of(Element)()
+        l.append(Element())
+        self.assertIs(l[0].parent, l)
+
     def test_extract_sub_items(self):
         @List.of
         class MyElement(Element):
             name = 'list'
-        flat = dict(('list-%d' % (i,), i) for i in xrange(3))
+        flat = dict(('list.%d' % (i,), i) for i in xrange(3))
         flat['list'] = 3
         flats = list(MyElement()._extract_sub_items(flat))
         flats.sort()
@@ -408,7 +420,7 @@ class TestListOf(unittest.TestCase):
         class MyElement(Element):
             name = 'list'
         flats = list(MyElement()._extract_flats(
-            dict(('list-%d' % (i,), i) for i in xrange(3))))
+            dict(('list.%d' % (i,), i) for i in xrange(3))))
         self.assertEqual(flats, [{'list': i} for i in xrange(3)])
 
     def test_extract_flats_with_structure(self):
@@ -418,10 +430,10 @@ class TestListOf(unittest.TestCase):
             a = Element
             b = Element
         flat = {
-            'list-0.a': 0,
-            'list-0.b': 1,
-            'list-1.a': 2,
-            'list-1.b': 3,
+            'list.0.a': 0,
+            'list.0.b': 1,
+            'list.1.a': 2,
+            'list.1.b': 3,
         }
         flats = list(MyElement()._extract_flats(flat))
         self.assertEqual(flats, [{'list.a': i, 'list.b': i + 1}
@@ -431,7 +443,7 @@ class TestListOf(unittest.TestCase):
         class MyElement(Element):
             name = 'list'
         MyList = List.of(MyElement)
-        flat = dict(('list-%d' % (i,), i) for i in xrange(3))
+        flat = dict(('list.%d' % (i,), i) for i in xrange(3))
         flat['list'] = '1'
         l = MyList.from_flat(flat)
         self.assertTrue(all(isinstance(el, MyElement) for el in l))
@@ -443,7 +455,7 @@ class TestListOf(unittest.TestCase):
             name = 'list'
             converter = int
         MyList = List.of(MyElement)
-        flat = dict(('list-%d' % (i,), i) for i in xrange(3))
+        flat = dict(('list.%d' % (i,), i) for i in xrange(3))
         flat['list'] = '1'
         l = MyList.from_flat(flat)
         self.assertTrue(all(isinstance(el, MyElement) for el in l))
@@ -460,12 +472,12 @@ class TestListOf(unittest.TestCase):
             b = Element
         el = MyElement.from_flat({
             'l': 1,
-            'l-2.a': 2,
-            'l-2.b': 3,
-            'l-2.b.a': 4,
-            'l-12.a': 5,
-            'l-12.b': 6,
-            'l-12.b.a': 7,
+            'l.2.a': 2,
+            'l.2.b': 3,
+            'l.2.b.a': 4,
+            'l.12.a': 5,
+            'l.12.b': 6,
+            'l.12.b.a': 7,
             'b': 8,
         })
         self.assertEqual(el['l'].value, 1)
@@ -487,12 +499,12 @@ class TestListOf(unittest.TestCase):
             b = Element
         flat = {
             'l': 1,
-            'l-0.a': 2,
-            'l-0.b': 3,
-            'l-0.b.a': 4,
-            'l-1.a': 5,
-            'l-1.b': 6,
-            'l-1.b.a': 7,
+            'l.0.a': 2,
+            'l.0.b': 3,
+            'l.0.b.a': 4,
+            'l.1.a': 5,
+            'l.1.b': 6,
+            'l.1.b.a': 7,
             'b': 8,
         }
         el = MyElement.from_flat(flat)
