@@ -520,11 +520,22 @@ class TestListOf(unittest.TestCase):
             @List.of
             class a(Element):
                 validators = [validator]
+                class b(Element):
+                    validators = [validator]
             a = a.with_attrs(validators=[validator])
         e = MyElement()
         e['a'].extend(e['a'].element_type() for _ in xrange(3))
         self.assertTrue(e.is_valid())
-        self.assertEqual(calls, [e['a'][0], e['a'][1], e['a'][2], e['a'], e])
+        self.assertEqual(calls, [
+            e['a'][0]['b'],
+            e['a'][0],
+            e['a'][1]['b'],
+            e['a'][1],
+            e['a'][2]['b'],
+            e['a'][2],
+            e['a'],
+            e
+        ])
 
 
 class TestWithAttrs(unittest.TestCase):
