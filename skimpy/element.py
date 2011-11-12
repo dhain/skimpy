@@ -167,28 +167,27 @@ class Element(object):
         return flat
 
     def _validate_children(self):
-        overall_result = True
+        result = True
         for child in self.itervalues():
-            child._validate_children()
-            result = child.is_valid(recursive=False)
-            if not result:
-                overall_result = False
-        return overall_result
+            if not child._validate_children():
+                result = False
+            if not child.is_valid(recursive=False):
+                result = False
+        return result
 
     def is_valid(self, recursive=True):
         self.validation_errors = []
-        overall_result = True
+        result = True
         if recursive and not self._validate_children():
-            overall_result = False
+            result = False
         for validator in self.validators:
             try:
-                result = validator(self)
+                if not validator(self):
+                    return False
             except Exception, err:
                 self.validation_errors.append(err)
-                result = False
-            if not result:
                 return False
-        return overall_result
+        return result
 
 
 class List(list, Element):
@@ -253,13 +252,13 @@ class List(list, Element):
             flat.update(child.flatten(adapt, include_empty))
 
     def _validate_children(self):
-        overall_result = True
+        result = True
         for child in self:
-            child._validate_children()
-            result = child.is_valid(recursive=False)
-            if not result:
-                overall_result = False
-        return overall_result
+            if not child._validate_children():
+                result = False
+            if not child.is_valid(recursive=False):
+                result = False
+        return result
 
     @classmethod
     def of(cls, element):

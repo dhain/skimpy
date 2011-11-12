@@ -537,6 +537,31 @@ class TestListOf(unittest.TestCase):
             e
         ])
 
+    def test_validation_fails_if_nested_item_fails(self):
+        calls = []
+        def validator(e):
+            valid = (getattr(e, 'name', '') != 'failer')
+            calls.append((e, valid))
+            return valid
+        class MyElement(Element):
+            validators = [validator]
+            @List.of
+            class a(Element):
+                validators = [validator]
+                class failer(Element):
+                    validators = [validator]
+            a = a.with_attrs(validators=[validator])
+        e = MyElement.from_flat({
+            'a.0.failer': 'fail',
+        })
+        self.assertFalse(e.is_valid())
+        self.assertEqual(calls, [
+            (e['a'][0]['failer'], False),
+            (e['a'][0], True),
+            (e['a'], True),
+            (e, True),
+        ])
+
 
 class TestWithAttrs(unittest.TestCase):
     def test_calls_with_attrs_on_argument(self):
