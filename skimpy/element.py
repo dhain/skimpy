@@ -269,6 +269,11 @@ class List(list, Element):
             pass
         return cls.with_attrs(**dct)
 
+    def copy(self):
+        new_list = Element.copy(self)
+        new_list[:] = self[:]
+        return new_list
+
 
 def with_attrs(*args, **kw):
     def with_attrs(element):

@@ -562,6 +562,18 @@ class TestListOf(unittest.TestCase):
             (e, True),
         ])
 
+    def test_copy_has_same_list_items(self):
+        class MyElement(Element):
+            name = 'list'
+        MyList = List.of(MyElement)
+        flat = dict(('list.%d' % (i,), i) for i in xrange(3))
+        flat['list'] = '1'
+        src = MyList.from_flat(flat)
+        l = src.copy()
+        self.assertTrue(all(isinstance(el, MyElement) for el in l))
+        self.assertEqual([el.value for el in l], range(3))
+        self.assertEqual(l.value, '1')
+
 
 class TestWithAttrs(unittest.TestCase):
     def test_calls_with_attrs_on_argument(self):
